@@ -14,7 +14,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
-import { Button, Dialog, Divider, FAB, IconButton, List, MD3Colors, Menu, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Appbar, Button, Dialog, Divider, FAB, IconButton, List, MD3Colors, Menu, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 import QRCode from 'react-native-qrcode-svg';
 
 export default function ClassScreen() {
@@ -29,9 +29,11 @@ export default function ClassScreen() {
   const [folderName, setFolderName] = useState('');
   const [busy, setBusy] = useState(false);
   const [renameState, setRenameState] = useState<{ type: 'folder' | 'file'; id: string; value: string } | null>(null);
-  const [menuAnchor, setMenuAnchor] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ id: string; type: 'folder' | 'file'; x: number; y: number } | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
   const [chooseFolderModal, setChooseFolderModal] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false);
+  const [folderOptionsModal, setFolderOptionsModal] = useState<{ folder: ClassFolder } | null>(null);
 
   useEffect(() => {
     const unsubA = listenToClass(classCode, setClazz);
@@ -96,38 +98,25 @@ export default function ClassScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Top app bar with QR */}
+      <Appbar.Header>
+        <Appbar.BackAction onPress={() => router.back()} />
+        <Appbar.Content title={`Class ${classCode}`} />
+        <Appbar.Action icon="qrcode" onPress={() => setQrVisible(true)} />
+      </Appbar.Header>
+
       <FlatList
         data={folders}
         keyExtractor={(f) => f.id}
-        contentContainerStyle={folders.length === 0 ? styles.emptyContainer : undefined}
-        ListHeaderComponent={
-          <View style={styles.headerBox}>
-            <Text>Class code</Text>
-            <View style={styles.qrRow}>
-              <QRCode value={classCode} size={90} />
-              <View style={{ marginLeft: 16 }}>
-                <Text selectable style={styles.code}>{classCode}</Text>
-                <Text style={{ color: '#666' }}>{files.length} file(s) total</Text>
-              </View>
-            </View>
-          </View>
-        }
+        contentContainerStyle={folders.length === 0 ? [styles.emptyContainer, styles.listPadBottom] : styles.listPadBottom}
+        ListHeaderComponent={null}
         ItemSeparatorComponent={Divider}
         ListEmptyComponent={<Text style={styles.emptyText}>No folders yet. Create one.</Text>}
         renderItem={({ item }) => (
           <List.Accordion
             title={item.name}
             left={(props) => <List.Icon {...props} icon="folder" />}
-            right={(props) => (
-              <Menu
-                visible={menuAnchor?.id === item.id}
-                onDismiss={() => setMenuAnchor(null)}
-                anchor={<IconButton icon="dots-vertical" onPress={(e) => setMenuAnchor({ id: item.id, x: 0, y: 0 })} />}
-              >
-                <Menu.Item onPress={() => { setRenameState({ type: 'folder', id: item.id, value: item.name }); setMenuAnchor(null); }} title="Rename" />
-                <Menu.Item onPress={() => { setMenuAnchor(null); confirmDeleteFolder(item); }} title="Delete" titleStyle={{ color: MD3Colors.error50 }} />
-              </Menu>
-            )}
+            onLongPress={() => setFolderOptionsModal({ folder: item })}
           >
             <View style={styles.folderActions} />
             {files.filter((f) => f.folderId === item.id).map((file) => (
@@ -138,9 +127,9 @@ export default function ClassScreen() {
                 left={(props) => <List.Icon {...props} icon="file" />}
                 right={() => (
                   <Menu
-                    visible={menuAnchor?.id === file.id}
+                    visible={menuAnchor?.id === file.id && menuAnchor?.type === 'file'}
                     onDismiss={() => setMenuAnchor(null)}
-                    anchor={<IconButton icon="dots-vertical" onPress={() => setMenuAnchor({ id: file.id, x: 0, y: 0 })} />}
+                    anchor={<IconButton icon="dots-vertical" onPress={() => setMenuAnchor({ id: file.id, type: 'file', x: 0, y: 0 })} />}
                   >
                     <Menu.Item onPress={() => { setRenameState({ type: 'file', id: file.id, value: file.name }); setMenuAnchor(null); }} title="Rename" />
                     <Menu.Item onPress={() => { setMenuAnchor(null); confirmDeleteFile(file); }} title="Delete" titleStyle={{ color: MD3Colors.error50 }} />
@@ -163,6 +152,19 @@ export default function ClassScreen() {
       />
 
       <Portal>
+        {/* QR and class code dialog */}
+        <Dialog visible={qrVisible} onDismiss={() => setQrVisible(false)}>
+          <Dialog.Title>Class Code</Dialog.Title>
+          <Dialog.Content>
+            <View style={{ alignItems: 'center' }}>
+              <QRCode value={classCode} size={160} />
+              <Text selectable style={{ marginTop: 12, fontSize: 18, fontWeight: '700' }}>{classCode}</Text>
+            </View>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setQrVisible(false)}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
         {/* Rename dialog */}
         <Dialog visible={!!renameState} onDismiss={() => setRenameState(null)}>
           <Dialog.Title>Rename {renameState?.type === 'folder' ? 'Folder' : 'File'}</Dialog.Title>
@@ -222,6 +224,29 @@ export default function ClassScreen() {
             <Button onPress={() => setChooseFolderModal(false)}>Close</Button>
           </Dialog.Actions>
         </Dialog>
+
+        {/* Folder options dialog */}
+        <Dialog visible={!!folderOptionsModal} onDismiss={() => setFolderOptionsModal(null)}>
+          <Dialog.Title>Folder Options</Dialog.Title>
+          <Dialog.Content>
+            <Text>What would you like to do with "{folderOptionsModal?.folder.name}"?</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setFolderOptionsModal(null)}>Cancel</Button>
+            <Button onPress={() => {
+              if (folderOptionsModal) {
+                setRenameState({ type: 'folder', id: folderOptionsModal.folder.id, value: folderOptionsModal.folder.name });
+                setFolderOptionsModal(null);
+              }
+            }}>Rename</Button>
+            <Button textColor={MD3Colors.error50} onPress={() => {
+              if (folderOptionsModal) {
+                setFolderOptionsModal(null);
+                confirmDeleteFolder(folderOptionsModal.folder);
+              }
+            }}>Delete</Button>
+          </Dialog.Actions>
+        </Dialog>
       </Portal>
 
       <Snackbar visible={!!snack} onDismiss={() => setSnack(null)} duration={2400}>{snack}</Snackbar>
@@ -232,6 +257,7 @@ export default function ClassScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   headerBox: { padding: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   qrRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   code: { fontSize: 20, fontWeight: '700' },
   section: { paddingHorizontal: 8 },
@@ -239,6 +265,7 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', right: 16, bottom: 24 },
   emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#666' },
+  listPadBottom: { paddingBottom: 96 },
 });
 
 
