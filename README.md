@@ -1,50 +1,104 @@
-# Welcome to your Expo app 👋
+# ClassFileOrganizer (Expo + Firebase)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Minimal cross‑platform app to create classes, organize folders, upload files to Firebase Storage, and see real‑time updates via Firestore. No auth. QR code per class for easy sharing.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Classes list with auto‑generated 6‑char class codes and QR codes
+- Inside a class: folders and files with real‑time sync
+- CRUD: create/rename/delete folders and files
+- Upload files (PDF/DOCX/ZIP/other) to Firebase Storage
+- Clean UI using React Native Paper; floating action menu
 
-   ```bash
-   npm install
-   ```
+## Tech
 
-2. Start the app
+- Expo SDK 53, Expo Router
+- Firebase JS SDK (Firestore + Storage)
+- react-native-paper, react-native-svg, react-native-qrcode-svg
+- expo-document-picker
 
-   ```bash
-   npx expo start
-   ```
+## Quick start
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1. Install deps
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Configure Firebase
 
-## Learn more
+- Update `firebaseconfig.ts` with your Firebase project keys (already scaffolded). Ensure Firestore and Storage are enabled in Firebase console.
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Required Firestore index
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Create a composite index for listing files:
+  - Collection: `files`
+  - Fields: `classCode` Asc, `uploadedAt` Desc
+  - Scope: Collection
+  - You can follow the console link shown in runtime errors if prompted.
 
-## Join the community
+4. Run the app
 
-Join our community of developers creating universal apps.
+```bash
+npx expo start
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Pick Android or iOS. For native modules, use a development build if needed:
+
+```bash
+npx expo run:android
+# or
+npx expo run:ios
+```
+
+## Usage
+
+- Home: Tap “New Class” to create one. Tap a class card to open.
+- Class screen:
+  - Plus button → New Folder or Upload File (select folder then pick a file)
+  - Three‑dot menu on folders/files → Rename or Delete
+  - QR code shown in header area for sharing code
+
+## Data model
+
+Firestore
+
+```ts
+// Collection: classes (doc id = classCode)
+Class {
+  code: string,
+  createdAt: Timestamp,
+  folders: { id: string, name: string, createdAt: number|Timestamp }[]
+}
+
+// Collection: files (auto id)
+File {
+  id: string,
+  classCode: string,
+  folderId: string,
+  name: string,
+  url: string,
+  path: string, // storage path
+  uploadedAt: Timestamp
+}
+```
+
+Storage
+
+```
+classes/{classCode}/{folderId}/{fileId}-{safeName}
+```
+
+## Notes
+
+- Firestore in RN uses long‑polling: see `initializeFirestore` options in `firebaseconfig.ts`.
+- If uploads fail on emulator, verify network and Storage rules.
+- No authentication; access is by knowing the class code.
+
+## Scripts
+
+```bash
+npm start           # expo start
+npm run android     # open Android
+npm run ios         # open iOS
+```
