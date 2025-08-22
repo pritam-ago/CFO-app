@@ -21,9 +21,16 @@ export default function RootLayout() {
   return (
     <PaperProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="class/[code]" options={{ headerShown: false }} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'slide_from_right',
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+          }}
+        >
+          <Stack.Screen name="index" options={{ title: 'Classes' }} />
+          <Stack.Screen name="class/[code]" options={{ title: 'Class' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style="auto" />

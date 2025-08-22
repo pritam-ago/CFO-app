@@ -1,18 +1,22 @@
-import { ClassDoc, createClass, listenToClasses } from '@/services/firebaseData';
-import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Appbar, Button, Card, Divider, FAB, Snackbar, Text } from 'react-native-paper';
+import { useRouter } from 'expo-router';
+import { Appbar, Button, Card, Divider, FAB, Snackbar, Text, ActivityIndicator } from 'react-native-paper';
+import { ClassDoc, createClass, listenToClasses } from '@/services/firebaseData';
 import QRCode from 'react-native-qrcode-svg';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [classes, setClasses] = useState<ClassDoc[]>([]);
   const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [snack, setSnack] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = listenToClasses(setClasses);
+    const unsub = listenToClasses((items) => {
+      setClasses(items);
+      setLoading(false);
+    });
     return () => unsub();
   }, []);
 
@@ -26,6 +30,20 @@ export default function HomeScreen() {
     } finally {
       setCreating(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Appbar.Header>
+          <Appbar.Content title="Classes" />
+        </Appbar.Header>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.loadingText}>Loading classes...</Text>
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -71,4 +89,6 @@ const styles = StyleSheet.create({
   code: { fontSize: 18, fontWeight: '600' },
   emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#666' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
 });
