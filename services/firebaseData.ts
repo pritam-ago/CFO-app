@@ -239,4 +239,24 @@ export function formatDate(ts: any): string {
   }
 }
 
+export async function joinClass(classCode: string): Promise<ClassDoc> {
+  // Check if class exists
+  const classRef = doc(db, CLASSES, classCode.toUpperCase());
+  const snap = await getDoc(classRef);
+  
+  if (!snap.exists()) {
+    throw new Error('Class not found. Please check the code and try again.');
+  }
+  
+  const classData = snap.data() as ClassDoc;
+  
+  // For now, we'll just return the class data
+  // In a future enhancement, you could:
+  // 1. Add user authentication
+  // 2. Store joined classes in a separate collection
+  // 3. Track user permissions within each class
+  
+  return classData;
+}
+
 
