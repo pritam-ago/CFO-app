@@ -2,7 +2,7 @@ import { ClassDoc, createClass, joinClass, listenToClasses } from '@/services/fi
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Appbar, Button, Card, Dialog, Divider, FAB, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -16,6 +16,8 @@ export default function HomeScreen() {
   const [classCode, setClassCode] = useState('');
   const [joining, setJoining] = useState(false);
   const [joinSuccess, setJoinSuccess] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
     const unsub = listenToClasses((items) => {
@@ -111,7 +113,10 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content title="Classes" />
+        <Appbar.Content 
+          title="Classes" 
+          subtitle={`Last updated: ${lastRefresh.toLocaleTimeString()}`}
+        />
       </Appbar.Header>
       <FlatList
         data={classes}
@@ -119,6 +124,28 @@ export default function HomeScreen() {
         ItemSeparatorComponent={Divider}
         contentContainerStyle={classes.length === 0 ? styles.emptyContainer : undefined}
         ListEmptyComponent={<Text style={styles.emptyText}>No classes yet. Create one to start.</Text>}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={() => {
+              setRefreshing(true);
+              setSnack('Refreshing classes...');
+              // Force refresh by re-fetching
+              const unsub = listenToClasses((items) => {
+                setClasses(items);
+                setRefreshing(false);
+                setLastRefresh(new Date());
+                setSnack('Classes refreshed!');
+              });
+              // Clean up after a short delay
+              setTimeout(() => unsub(), 1000);
+            }}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+            title="Pull to refresh"
+            titleColor="#666"
+          />
+        }
 
         renderItem={({ item }) => (
           <Card style={styles.card} onPress={() => router.push(`/class/${item.code}`)}>

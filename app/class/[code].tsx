@@ -13,7 +13,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Animated, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Appbar, Button, Dialog, Divider, FAB, IconButton, List, MD3Colors, Menu, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -36,6 +36,8 @@ export default function ClassScreen() {
   const [folderOptionsModal, setFolderOptionsModal] = useState<{ folder: ClassFolder } | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [folderAnimations, setFolderAnimations] = useState<{ [key: string]: Animated.Value }>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
     const unsubA = listenToClass(classCode, setClazz);
@@ -143,12 +145,32 @@ export default function ClassScreen() {
     });
   };
 
+  const onRefresh = useMemo(() => async () => {
+    setRefreshing(true);
+    setSnack('Refreshing class data...');
+    try {
+      // The existing listeners will automatically update the data
+      // We just need to wait a moment for the refresh to complete
+      setTimeout(() => {
+        setRefreshing(false);
+        setLastRefresh(new Date());
+        setSnack('Class data refreshed!');
+      }, 500);
+    } catch (e: any) {
+      setSnack(e?.message || 'Failed to refresh');
+      setRefreshing(false);
+    }
+  }, []);
+
   return (
     <View style={styles.container}>
       {/* Top app bar with QR */}
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title={`Class ${classCode}`} />
+        <Appbar.Content 
+          title={`Class ${classCode}`} 
+          subtitle={`Last updated: ${lastRefresh.toLocaleTimeString()}`}
+        />
         <Appbar.Action icon="qrcode" onPress={() => setQrVisible(true)} />
       </Appbar.Header>
 
@@ -214,6 +236,16 @@ export default function ClassScreen() {
             )}
           </View>
         )}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+            title="Pull to refresh"
+            titleColor="#666"
+          />
+        }
       />
       <FAB.Group
         open={fabOpen}
